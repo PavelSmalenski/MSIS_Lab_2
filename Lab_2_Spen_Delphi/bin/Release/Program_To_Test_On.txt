@@ -1,0 +1,293 @@
+program Global_Scan_Ruby;
+
+{$APPTYPE CONSOLE}
+
+uses
+  SysUtils,
+  RegExpr in 'C:\Program Files (x86)\Borland\Delphi7\RegExp\Source\RegExpr.pas';
+
+type
+  TCode = array of string;
+
+  TNames = ^TElement;
+  TElement = record
+    Name: string;
+    AuP:  Integer;
+    Next: TNames;
+  end;
+var
+  codeFile: TextFile;
+  methodsNumber, variablesNumber, codeLength, UsageNum: Integer;
+  Code: TCode;
+  variablesNames: TNames;
+  RuPSumm: Real;
+
+function  GetCode(out Code: TCode; codeFile: TextFile): integer;                          forward;
+procedure ClearCode(var Code: TCode; var codeLength: integer);                            forward;
+function  methodsSearch (Code: TCode; codeLength: integer): Integer;                      forward;
+function  variablesSearch(Code: TCode; var variablesNames: TNames): integer;              forward;
+procedure ResultsOutput(variablesNames: TNames; variablesNumber, methodsNumber: integer); forward;
+
+  function GetCode (out Code: TCode; codeFile: TextFile): integer;
+  begin
+    Result := 0;
+    Reset (codeFile);
+    while not(EoF(codeFile)) do
+    begin
+      Inc(Result);
+      SetLength(Code, Result);
+      Readln(codeFile, Code[Result - 1]);
+    end;
+    Close(codeFile);
+  end;
+
+  procedure DeleteLine(var Code: TCode; var codeLength: integer; deletePosition: Integer);
+    var
+      i: Integer;
+    begin
+      for i := deletePosition to (codeLength - 2) do
+        Code[i] := Code[i + 1];
+      Dec(codeLength);
+    end;
+
+  procedure ClearCode (var Code: TCode; var codeLength: integer);
+  const
+    SimpleCommentExpression = '#[^"'']*$';
+    CommentBeginingExpression = '=[b|B][e|E][g|G][i|I][n|N](\s|$).*$';          //!!!
+    CommentEndingExpression = '^.*=[e|E][n|N][d|D](\s|$)';                      //!!!
+    LiteralExpression = '".*"';
+  var
+    isOpen: Boolean;
+    RegCell: TRegExpr;
+    i: Integer;
+  begin
+    isOpen := False;
+    RegCell := TRegExpr.Create;
+    i := 0;
+    while (i <= (codeLength - 1)) do
+    begin
+      Code[i] := Trim(Code[i]);
+      if not(isOpen) then
+      begin
+        RegCell.Expression := SimpleCommentExpression;
+        if RegCell.Exec(Code[i]) then
+          Delete(Code[i], RegCell.MatchPos[0], RegCell.MatchLen[0]);
+
+        RegCell.Expression := CommentBeginingExpression;
+        if RegCell.Exec(Code[i]) then
+        begin
+          isOpen := True;
+          Delete(Code[i], RegCell.MatchPos[0], RegCell.MatchLen[0]);
+        end;
+
+        RegCell.Expression := LiteralExpression;
+        if RegCell.Exec(Code[i]) then
+        begin
+          Delete(Code[i], RegCell.MatchPos[0], RegCell.MatchLen[0]);
+          while RegCell.ExecNext do
+            Delete(Code[i], RegCell.MatchPos[0], RegCell.MatchLen[0]);
+        end;
+        Code[i] := Trim(Code[i]);
+        if Code[i] = '' then
+            DeleteLine(Code, codeLength, i)
+        else
+          Inc(i);
+      end
+      else
+      begin
+        RegCell.Expression := CommentEndingExpression;
+        if RegCell.Exec(Code[i]) then
+        begin
+          Delete(Code[i], RegCell.MatchPos[0], RegCell.MatchLen[0]);
+          Code[i] := Trim(Code[i]);
+          isOpen := False;
+          if Code[i] = '' then
+            DeleteLine(Code, codeLength, i)
+          else
+            Inc(i);
+        end
+        else
+        begin
+          DeleteLine(Code, codeLength, i);
+        end;
+      end;
+    end;
+    RegCell.Free;
+  end;
+
+  function methodsSearch (Code: TCode; codeLength: integer): Integer;
+  const
+    MethodExpression = '^(?i)d(?i)e(?i)f ';
+  var
+    RegCell: TRegExpr;
+    i: Integer;
+  begin
+    RegCell := TRegExpr.Create;
+    RegCell.Expression := MethodExpression;
+    Result := 0;
+    for i := 0 to (codeLength - 1) do
+      if RegCell.Exec(Code[ i ]) then
+        Inc(Result);
+    RegCell.Free;
+  end;
+
+  function Find(var variablesNames: TNames; Line: string): boolean;
+    var
+      namesTemp: TNames;
+    begin
+      Result := False;
+      namesTemp := variablesNames;
+      while (variablesNames^.Next <> nil) do
+      begin
+        variablesNames := variablesNames^.Next;
+        if variablesNames^.Name = Line then
+        begin
+          Result := true;
+          Inc(variablesNames^.AuP);
+          Break;
+        end;
+      end;
+      variablesNames := namesTemp;
+    end;
+
+  function ClearLine(line: string): string;
+    const
+      ElementsToDelete = ['(',')','[',']','=','.'];
+    begin
+      Result := Trim(line);
+      if (Result[1] in ElementsToDelete) then
+        Delete(Result,1,1);
+      if (Result[Length(Result)] in ElementsToDelete)  then
+        Delete(Result,Length(Result),1);
+    end;
+
+  function variablesSearch (Code: TCode; var variablesNames: TNames): integer;
+  const
+    VariableExpression = '(\[|^|\s|\(|\.|=)\$[a-zA-Z_][\w]{0,}(\s|$|\)|\]|\.|=)';//'(\[|^|\s|\(|\.|=)\$[\w]{1,}(\s|$|\)|\]|\.|=)';
+  var
+    Temp: TNames;
+    RegCell: TRegExpr;
+    tempLine: string;
+    i: Integer;
+  begin
+    Result := 0;
+    Temp := variablesNames;
+
+    RegCell := TRegExpr.Create;
+    RegCell.Expression := VariableExpression;
+
+    for i := 0 to (codeLength - 1) do
+      if RegCell.Exec(Code[ i ]) then
+      begin
+        tempLine := ClearLine(RegCell.Match[0]);
+        if not(Find(Temp, tempLine)) then
+        begin
+          Inc(Result);
+          New( variablesNames^.Next );
+          variablesNames := variablesNames^.Next;
+          variablesNames^.Next := nil;
+          variablesNames^.AuP := 1;
+          variablesNames^.Name := tempLine;
+        end;
+        while RegCell.ExecNext do
+        begin
+          tempLine := ClearLine(RegCell.Match[0]);
+          if not(Find(Temp, tempLine)) then
+          begin
+            Inc(Result);
+            New( variablesNames^.Next );
+            variablesNames := variablesNames^.Next;
+            variablesNames^.Next := nil;
+            variablesNames^.AuP := 1;
+            variablesNames^.Name := tempLine;
+          end;
+        end;
+      end;
+
+    variablesNames := Temp;
+    RegCell.Free;
+  end;
+
+  procedure ResultsOutput (variablesNames: TNames; variablesNumber, methodsNumber: integer);          //TableWidth = 36
+  var
+    RuP: Real;
+    PuP: integer;
+    i, j: Integer;
+  begin
+    RuPSumm := 0;
+    write(#201);
+    for i := 1 to 25 do
+      Write(#205);
+    Write(#203);
+    for i := 1 to 8 do
+      Write(#205);
+    Write(#203);
+    for i := 1 to 8 do
+      Write(#205);
+    Writeln(#187);
+
+    Writeln(#186, '        Variable         ', #186, '  AuP   ', #186, '  RuP   ', #186);
+
+    PuP := variablesNumber * methodsNumber;
+
+    while (variablesNames.Next <> nil) do
+      begin
+        variablesNames := variablesNames^.Next;
+        RuP := variablesNames^.AuP / PuP;
+        RuPSumm := RuPSumm + RuP;
+        Write(#204);
+        for i := 1 to 25 do
+          Write(#205);
+        write(#206);
+        for i := 1 to 8 do
+          Write(#205);
+        write(#206);
+        for i := 1 to 8 do
+          Write(#205);
+        Writeln(#185);
+
+        Writeln(#186, variablesNames^.Name:25, #186, variablesNames^.AuP:8, #186, RuP:8:3, #186);
+      end;
+
+    Write(#200);
+    for i := 1 to 25 do
+      Write(#205);
+    Write(#202);
+    for i := 1 to 8 do
+      Write(#205);
+      Write(#202);
+    for i := 1 to 8 do
+      Write(#205);
+    Writeln(#188);
+    Writeln('PuP: ', PuP);
+    Writeln('RuP Summ: ', RuPSumm:7:4);
+  end;
+
+begin
+  Assign(codeFile, 'CodeFile_1.txt');
+  { codeFile
+    codeFile
+    codeFile }
+  codeLength := 0;
+  codeLength := GetCode(Code, codeFile);
+
+  if (codeLength <> 0) then
+    ClearCode(Code, codeLength);
+
+  if (codeLength <> 0) then
+  begin
+    methodsNumber := methodsSearch(Code, codeLength);
+
+    New(variablesNames);
+    variablesNames^.Next := nil;
+    variablesNumber := variablesSearch(Code, variablesNames);
+    if (variablesNumber <> 0) and (methodsNumber <> 0) then
+      ResultsOutput(variablesNames,variablesNumber,methodsNumber)
+    else
+      writeln('No Global Variables And/Or Methods Found.');
+  end
+  else
+  Writeln('Code Not Found!');
+
+  Readln;
+end.

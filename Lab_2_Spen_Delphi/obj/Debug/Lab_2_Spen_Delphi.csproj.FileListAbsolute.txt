@@ -1,0 +1,9 @@
+D:\Мои документы\МСиСвИнфТ\Lab_2_Spen_Delphi\Lab_2_Spen_Delphi\bin\Debug\Lab_2_Spen_Delphi.exe.config
+D:\Мои документы\МСиСвИнфТ\Lab_2_Spen_Delphi\Lab_2_Spen_Delphi\bin\Debug\Lab_2_Spen_Delphi.exe
+D:\Мои документы\МСиСвИнфТ\Lab_2_Spen_Delphi\Lab_2_Spen_Delphi\bin\Debug\Lab_2_Spen_Delphi.pdb
+D:\Мои документы\МСиСвИнфТ\Lab_2_Spen_Delphi\Lab_2_Spen_Delphi\obj\Debug\Lab_2_Spen_Delphi.csprojResolveAssemblyReference.cache
+D:\Мои документы\МСиСвИнфТ\Lab_2_Spen_Delphi\Lab_2_Spen_Delphi\obj\Debug\Lab_2_Spen_Delphi.exe
+D:\Мои документы\МСиСвИнфТ\Lab_2_Spen_Delphi\Lab_2_Spen_Delphi\obj\Debug\Lab_2_Spen_Delphi.pdb
+d:\Мои документы\МСиСвИнфТ\Lab_2\MSIS_Lab_2.git\Lab_2_Spen_Delphi\bin\Debug\Lab_2_Spen_Delphi.exe.config
+d:\Мои документы\МСиСвИнфТ\Lab_2\MSIS_Lab_2.git\Lab_2_Spen_Delphi\obj\Debug\Lab_2_Spen_Delphi.exe
+d:\Мои документы\МСиСвИнфТ\Lab_2\MSIS_Lab_2.git\Lab_2_Spen_Delphi\obj\Debug\Lab_2_Spen_Delphi.pdb
